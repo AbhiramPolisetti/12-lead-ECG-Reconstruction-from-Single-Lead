@@ -46,7 +46,7 @@ def preprocess_and_save(file_path, leads):
     output_file = os.path.join(output_dir, f'preprocessed_{os.path.basename(file_path)}')
     df.to_csv(output_file, index=False)
 
-# Process and save ECG data for all CSV files in the input directory
+
 for file_name in os.listdir(input_dir):
     if file_name.endswith('.csv'):
         file_path = os.path.join(input_dir, file_name)
