@@ -42,4 +42,4 @@ def calculate_metrics(actual_values, predicted_values):
 
     print(f"R-squared: {r2:.4f}")
     print(f"Correlation Coefficient: {correlation_coefficient:.4f}")
-    print(f"Regression Coefficient: {regression_coefficient:.4f}")
+    print(f"Regression Coefficient: {regression_coefficient[0]:.4f}")
