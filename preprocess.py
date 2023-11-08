@@ -1,14 +1,15 @@
+#preprocess.py
 import os
 import pandas as pd
-import numpy as np
-from scipy.signal import butter, lfilter
+from scipy.signal import butter, lfilter, medfilt
 import time
 
-input_dir = r"D:\deepfacts\ecg_coversion\csv_output" 
-output_dir = "D:\deepfacts\ecg_coversion\preprocessed_output"
+input_dir = r"data"
+output_dir = r"preprocessed"
 
 os.makedirs(output_dir, exist_ok=True)
 
+# Define the list of ECG leads
 leads = ['i', 'ii', 'iii', 'avr', 'avl', 'avf', 'v1', 'v2', 'v3', 'v4', 'v5', 'v6']
 
 # Measure execution time decorator
@@ -22,31 +23,30 @@ def measure_execution_time(func):
         return result
     return wrapper
 
-# Function to apply bandpass filter
-def bandpass_filter(data, lowcut, highcut, fs):
+# Bandpass filter function
+@measure_execution_time
+def bandpass_filter(data, lowcut=0.05, highcut=40.0, fs=1000):
     nyquist = 0.5 * fs
     low = lowcut / nyquist
     high = highcut / nyquist
     b, a = butter(4, [low, high], btype='band')
-    y = lfilter(b, a, data)
-    return y
+    return lfilter(b, a, data)
 
-# Function to apply baseline correction using median filter
-def baseline_correction(data, kernel_size=2001):
-    return data - np.median(data, axis=0)
-
+# Baseline correction function using median filter
+@measure_execution_time
+def baseline_correction(data, kernel_size=701):
+    return data - medfilt(data, kernel_size)
 
 # Process and save data
 @measure_execution_time
 def preprocess_and_save(file_path, leads):
     df = pd.read_csv(file_path)
     df = df[leads]
-    fs = 1000 
-    df = df.apply(lambda col: baseline_correction(bandpass_filter(col, 0.05, 40.0, fs)))
-    output_file = os.path.join(output_dir, os.path.basename(file_path))
+    df = df.apply(lambda col: baseline_correction(bandpass_filter(col)))
+    output_file = os.path.join(output_dir, f'preprocessed_{os.path.basename(file_path)}')
     df.to_csv(output_file, index=False)
 
-
+# Process and save ECG data for all CSV files in the input directory
 for file_name in os.listdir(input_dir):
     if file_name.endswith('.csv'):
         file_path = os.path.join(input_dir, file_name)
