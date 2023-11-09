@@ -1,15 +1,14 @@
-#preprocess.py
 import os
 import pandas as pd
-from scipy.signal import butter, lfilter, medfilt
+import numpy as np
+from scipy.signal import butter, lfilter
 import time
 
-input_dir = r"data"
-output_dir = r"preprocessed"
+input_dir = r"C:\Users\iabhi\Desktop\Patient_1\Data"
+output_dir = r"C:\Users\iabhi\Desktop\preprocessed"
 
 os.makedirs(output_dir, exist_ok=True)
 
-# Define the list of ECG leads
 leads = ['i', 'ii', 'iii', 'avr', 'avl', 'avf', 'v1', 'v2', 'v3', 'v4', 'v5', 'v6']
 
 # Measure execution time decorator
@@ -23,26 +22,27 @@ def measure_execution_time(func):
         return result
     return wrapper
 
-# Bandpass filter function
-@measure_execution_time
-def bandpass_filter(data, lowcut=0.05, highcut=40.0, fs=1000):
+# Function to apply bandpass filter
+def bandpass_filter(data, lowcut, highcut, fs):
     nyquist = 0.5 * fs
     low = lowcut / nyquist
     high = highcut / nyquist
     b, a = butter(4, [low, high], btype='band')
-    return lfilter(b, a, data)
+    y = lfilter(b, a, data)
+    return y
 
-# Baseline correction function using median filter
-@measure_execution_time
-def baseline_correction(data, kernel_size=701):
-    return data - medfilt(data, kernel_size)
+# Function to apply baseline correction using median filter
+def baseline_correction(data):
+    return data - np.median(data, axis=0)
+
 
 # Process and save data
 @measure_execution_time
 def preprocess_and_save(file_path, leads):
     df = pd.read_csv(file_path)
     df = df[leads]
-    df = df.apply(lambda col: baseline_correction(bandpass_filter(col)))
+    fs = 1000 
+    df = df.apply(lambda col: baseline_correction(bandpass_filter(col, 0.05, 40.0, fs)))
     output_file = os.path.join(output_dir, f'preprocessed_{os.path.basename(file_path)}')
     df.to_csv(output_file, index=False)
 
