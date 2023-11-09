@@ -11,15 +11,15 @@ def load(model_folder, model_name, input_data, sequence_length):
     model_path = os.path.join(model_folder, "{}.h5".format(model_name))
     model = load_model(model_path)
 
+    scaler = MinMaxScaler()
+    input_data = scaler.fit_transform(input_data.reshape(-1, 1))
+    
     X = []
     for i in range(len(input_data)):
         X.append(input_data[i:i + sequence_length])
 
     X = pad_sequences(X, padding='post', maxlen=sequence_length)
     X = np.array(X)
-
-    scaler = MinMaxScaler()
-    input_data = scaler.fit_transform(input_data.reshape(-1, 1))
 
     predicted_values = model.predict(X)
     predicted_values = scaler.inverse_transform(predicted_values)
