@@ -11,7 +11,6 @@ def load_data(file_path):
 
 
 def preprocess_data(data, target_column):
-    """Preprocess the data."""
     X = data['ii'].values.reshape(-1, 1)
     y = data[target_column].values
 
