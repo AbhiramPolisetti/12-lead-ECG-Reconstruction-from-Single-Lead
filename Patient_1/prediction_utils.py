@@ -2,30 +2,24 @@
 import os
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import MinMaxScaler
 from tensorflow.keras.models import load_model
-from tensorflow.keras.preprocessing.sequence import pad_sequences
-
-
-def load(model_folder, model_name, input_data, sequence_length):
+import joblib
+import time
+def load(model_folder, scaler_folder, model_name, input_data, target_column):
     model_path = os.path.join(model_folder, "{}.h5".format(model_name))
     model = load_model(model_path)
 
-    scaler = MinMaxScaler()
-    input_data = scaler.fit_transform(input_data.reshape(-1, 1))
-    
-    X = []
-    for i in range(len(input_data)):
-        X.append(input_data[i:i + sequence_length])
+    scaler_path = os.path.join(scaler_folder, "{}.pkl".format(model_name))
+    scaler = joblib.load(scaler_path)
 
-    X = pad_sequences(X, padding='post', maxlen=sequence_length)
-    X = np.array(X)
+    # Reshape input_data to have two dimensions
+    input_data = input_data.reshape(-1, 1)
+    scaled_data = scaler.transform(input_data)
 
-    predicted_values = model.predict(X)
+    predicted_values = model.predict(scaled_data)
     predicted_values = scaler.inverse_transform(predicted_values)
 
-    return predicted_values
-
+    return predicted_values, target_column
 
 def calculate_independent_leads(i_data, ii_data):
     iii = ii_data - i_data
@@ -35,28 +29,43 @@ def calculate_independent_leads(i_data, ii_data):
 
     return iii, avR, avL, avF
 
-
-def predict_and_save(file_path, input_column, sequence_length, target_columns, model_folder, output_csv):
+def predict_and_save(file_path, input_column, target_columns, model_folder, scaler_folder, output_csv):
     input_data = pd.read_csv(file_path)[input_column].values
 
     predictions_df = pd.DataFrame()
-    predictions_df['ii'] = pd.read_csv(file_path)['ii'].values
+    predictions_df[input_column] = input_data
 
     for target_column in target_columns:
-        predicted_values = load(model_folder, target_column, input_data, sequence_length)
-        predictions = predicted_values.flatten()
+        predicted_values, target_name = load(model_folder, scaler_folder, target_column, input_data, target_column)
+        predictions_df[target_name] = predicted_values
 
-        predictions_df[target_column] = predictions
+    if 'i' in target_columns:
+        i_data = predictions_df['i'].values
+        ii_data = predictions_df[input_column].values
 
-    i_data = predictions_df['i'].values
-    ii_data = predictions_df['ii'].values
+        iii, avR, avL, avF = calculate_independent_leads(i_data, ii_data)
 
-    iii, avR, avL, avF = calculate_independent_leads(i_data, ii_data)
+        predictions_df['iii'] = iii
+        predictions_df['avr'] = avR
+        predictions_df['avl'] = avL
+        predictions_df['avf'] = avF
 
-    predictions_df['iii'] = iii
-    predictions_df['avR'] = avR
-    predictions_df['avL'] = avL
-    predictions_df['avF'] = avF
+    column_order = ['i', 'ii', 'iii', 'avr', 'avl', 'avf', 'v1', 'v2', 'v3', 'v4', 'v5', 'v6']
+    predictions_df = predictions_df[column_order]
 
     predictions_df.to_csv(output_csv, index=False)
+
+
+
+
+if __name__ == '__main__':
+    file_path = r"/content/test_patient2_1000.csv"
+    input_column = 'ii'
+    target_columns = ['i', 'v1', 'v2', 'v3', 'v4', 'v5', 'v6']
+    model_folder = r"/content"
+    scaler_folder = r"/content"  # Adjust this path
+    output_csv = 'predictions.csv'
+
+
+    predict_and_save(file_path, input_column, target_columns, model_folder, scaler_folder, output_csv)
 
